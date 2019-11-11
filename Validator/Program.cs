@@ -12,11 +12,8 @@ namespace Validator
         {
             ValidateXml validate = new ValidateXml();
 
-            var test = "C:/Users/Scott/Documents/xmlTest.xml";
-            var test2 = "C:/Users/Scott/DRVS-Clients/mlchc/1_Lynn/queries.xml";
-            var test3 = "C:/Users/Scott/DRVS-Clients/mlchc/7_Lowell/queries.xml";
-
-            validate.ValidateQueries(test2);
+            if (args != null)
+                validate.ValidateQueries(args[0]);
         }
     }
 }
