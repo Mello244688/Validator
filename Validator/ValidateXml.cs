@@ -26,13 +26,66 @@ namespace Validator
 
             var validTables = new string[]
             {
-
+                "allergy"
+                , "problem"
+                , "appointment"
+                , "charge"
+                , "diagnosis"
+                , "encounter"
+                , "encounterpayerxref"
+                , "lab"
+                , "result"
+                , "maintenance"
+                , "immunization"
+                , "medication"
+                , "payer"
+                , "patient_payer"
+                , "patient"
+                , "provider"
+                , "assessment"
+                , "medicationlist"
+                , "prescription"
+                , "order"
+                , "vitals"
+                , "claim"
+                , "users"
+                , "balance"
+                , "document"
+                , "chargesummary"
+                , "payment"
+                , "eventlog"
+                , "adjustment"
+                , "denial"
+                , "hours"
+                , "employee"
+                , "rx_provider"
+                , "rx_transaction"
+                , "drug"
+                , "work_hours"
+                , "provider_order"
+                , "immunizationcombodetails"
+                , "chargediagnosis"
+                , "availableslots"
+                , "patientcohort"
+                , "obepisode"
+                , "oboutcome"
             };
 
             XmlReaderSettings xmlReaderSettings = new XmlReaderSettings();
             xmlReaderSettings.IgnoreComments = true;
 
-            var doc = XDocument.Load(path);
+            XDocument doc;
+
+            try
+            {
+                doc = XDocument.Load(path);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("\nERROR: {0}", ex.Message);
+                return;
+            }
+            
             var strDoc = doc.ToString().ToLower();
 
             XmlDocument xml = new XmlDocument();
@@ -83,24 +136,28 @@ namespace Validator
                     errorCount++;
                 }
 
-                //verify that the query element name matches the table, and is seperated by an underscore <maintenance_example table="maintenance"
-                if (table == null || (node.Name.IndexOf(table + "_") < 0 && node.Name != table))
+                //verify the table name is valid
+                if (!validTables.Contains(table))
                 {
-                    if (table != "patient_payer" && node.Name != "patientpayer" && !table.Contains("provider_order") && node.Name != "providerorder")
-                    {
-                        Console.WriteLine("\nERROR: The name of the element, preceding an underscore, must match the table attribute value \n\n" + "<" + node.Name + " table=\"" + table + "\"");
-                        errorCount++;
-                    }
+                    Console.WriteLine("\nERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
+                    errorCount++;
+                }
+
+                //verify that the query element name matches the table, and is seperated by an underscore <maintenance_example table="maintenance"
+                if (!DoesTableMatchElement(node.Name, table))
+                {
+                    Console.WriteLine("\nERROR: The name of the element, preceding an underscore, must match the table attribute value \n\n" + "<" + node.Name + " table=\"" + table + "\"");
+                    errorCount++;
                 }
 
                 RemoveSqlComments(node);
-
 
                 if (HasRequiredFields(table, node) == false)
                 {
                     errorCount++;
                 }
             }
+
 
             //ensure that there are not any duplicate elements
             foreach (var elementName in elementNames.Where(x => !eleHash.Add(x)).ToList().Distinct())
@@ -109,6 +166,7 @@ namespace Validator
                 errorCount++;
             }
 
+            //print random success message
             Random rnd = new Random();
 
             if (errorCount == 0)
@@ -121,6 +179,15 @@ namespace Validator
 
         }
 
+        private bool DoesTableMatchElement(string elementName, string table)
+        {
+            //TODO: update to take into acount other tables like patient_payer and provider_order where elements are providerorder
+            if (table == null)
+                return false;
+
+            return (elementName.IndexOf(table + "_") >= 0 || elementName == table);
+        }
+
         private void RemoveSqlComments(XmlNode node)
         {
             var openBlock = "/*";
@@ -129,6 +196,7 @@ namespace Validator
             char dash = '-';
             bool inInlineComment = false;
             bool inBlockComment = false;
+            bool hasInvalidComment = false;
 
             var sql = new StringBuilder();
 
@@ -141,6 +209,7 @@ namespace Validator
                 if (node.InnerXml[i] == dash && node.InnerXml[i + 1] == dash)
                 {
                     inInlineComment = true;
+                    hasInvalidComment = true;
                 }
                 else if (node.InnerXml[i] == newline)
                 {
@@ -164,6 +233,9 @@ namespace Validator
                 }
             }
             node.InnerXml = sql.ToString();
+
+            if (hasInvalidComment)
+                Console.WriteLine("\nERROR: " + "<" + node.Name + ">" + " contains inline commets \"--\". Please use block comments \"/*\"");
         }
 
         private bool HasRequiredFields(string tableName, XmlNode node)
@@ -177,9 +249,11 @@ namespace Validator
             if (source != null || type == "command")
                 return true;
 
+            //TODO: update to take into account not using alias as. Check for the specific terms and certain cases, such as not inside parens, etc.
             var key = "as " + tableName + "_id";
             var create = "as create_timestamp";
             var modify = "as modify_timestamp";
+            var delete = "as delete_ind";
             var errorCount = 0;
             var elementName = node.Name;
 
@@ -196,6 +270,12 @@ namespace Validator
             if (node.InnerXml.Contains(modify) == false)
             {
                 Console.WriteLine("\nERROR: Missing alias \"" + modify + "\" in " + "<" + elementName + ">");
+                errorCount++;
+            }
+
+            if (node.InnerXml.Contains(delete) == false)
+            {
+                Console.WriteLine("\nERROR: Missing alias \"" + delete + "\" in " + "<" + elementName + ">");
                 errorCount++;
             }
 

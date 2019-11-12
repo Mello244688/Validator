@@ -14,9 +14,6 @@ namespace Validator
 
             if (args != null)
                 validate.ValidateQueries(args[0]);
-            
-            Console.WriteLine("Press any key to close...");
-            Console.ReadLine();
         }
     }
 }
