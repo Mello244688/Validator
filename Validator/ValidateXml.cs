@@ -142,9 +142,11 @@ namespace Validator
                     errorCount++;
                 }
 
+                //remove sql comments from innerXML before validating fields
                 RemoveSqlComments(node);
 
-                if (HasRequiredFields(table, node) == false)
+                //check for required fields
+                if (!HasRequiredFields(table, node))
                 {
                     errorCount++;
                 }
