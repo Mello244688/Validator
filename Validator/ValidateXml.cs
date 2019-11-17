@@ -242,7 +242,16 @@ namespace Validator
             if (source != null || type == "command")
                 return true;
 
+            var errorCount = 0;
+            var elementName = node.Name;
             string key;
+
+            List<string> requiredFields = new List<string>
+            {
+                "create_timestamp"
+                , "modify_timestamp"
+                , "delete_ind"
+            };
 
             if (nonStandardTableId.ContainsKey(tableName))
             {
@@ -252,34 +261,16 @@ namespace Validator
             {
                 key = tableName + "_id";
             }
-              
-            //TODO: this may not catch all cases. Need to determine a better way to validate that these columns are returned from query
-            var create = "create_timestamp";
-            var modify = "modify_timestamp";
-            var delete = "delete_ind";
-            var errorCount = 0;
-            var elementName = node.Name;
 
-            if (node.InnerXml.Contains(key) == false)
-            {
-                Console.WriteLine("\nERROR: Missing alias \"" + key + "\" in " + "<" + elementName + ">");
-                errorCount++;
-            }
-            if (node.InnerXml.Contains(create) == false)
-            {
-                Console.WriteLine("\nERROR: Missing alias \"" + create + "\" in " + "<" + elementName + ">");
-                errorCount++;
-            }
-            if (node.InnerXml.Contains(modify) == false)
-            {
-                Console.WriteLine("\nERROR: Missing alias \"" + modify + "\" in " + "<" + elementName + ">");
-                errorCount++;
-            }
+            requiredFields.Add(key);
 
-            if (node.InnerXml.Contains(delete) == false)
+            foreach (var field in requiredFields)
             {
-                Console.WriteLine("\nERROR: Missing alias \"" + delete + "\" in " + "<" + elementName + ">");
-                errorCount++;
+                if (node.InnerXml.Contains(field) == false)
+                {
+                    Console.WriteLine("\nERROR: Missing alias \"" + field + "\" in " + "<" + elementName + ">");
+                    errorCount++;
+                }
             }
 
             return errorCount == 0;
