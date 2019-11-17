@@ -10,66 +10,58 @@ namespace Validator
 {
     class ValidateXml
     {
+        private readonly string[] successMessage = new string[]
+        {
+            "YOU'VE GONE AND DONE IT!"
+            , "YOU ARE ON A ROLL MEOW!"
+            , "LOOK AT ALL YOU'VE ACCOMPLISHED!"
+            , "GO GET THAT 5 STAR REVIEW!"
+            , "YOU'RE THE PRIDE AND JOY OF AZARA!"
+            , "HOW DO YOU KEEP ALL THAT BRAIN FROM SPILLING OUT!?"
+            , "YOU'RE THE WHOLE PACKAGE, BEAUTIFUL, SMART, FUNNY, AND YOU CAN FOLLOW CODING STANDARDS!"
+            , "KNOCK KNOCK!! WHO'S THERE? A SUPER STAAAHHHHH!!"
+        };
+
+        /*{table, element}*/
+        private readonly Dictionary<string, string> validTableAndElement = new Dictionary<string, string>()
+        {
+            {"adjustment", "adjustment"}
+            , {"allergy", "allergy" }
+            , {"appointment", "appointment"}
+            , {"balance", "balance"}
+            , {"charge", "charge"}
+            , {"chargediagnosis", "chargediagnosis"}
+            , {"chargesummary", "chargesummary"}
+            , {"claim", "claim"}
+            , {"denial", "denial"}
+            , {"diagnosis", "diagnosis"}
+            , {"encounter", "encounter"}
+            , {"obepisode", "obepisode"}
+            , {"oboutcome", "oboutcome"}
+            , {"lab", "lab"}
+            , {"maintenance", "maintenance"}
+            , {"medication", "medication"}
+            , {"immunization", "immunization"}
+            , {"payer", "payer"}
+            , {"patient_payer", "patientpayer"}
+            , {"payment", "payment"}
+            , {"prescription", "prescription"}
+            , {"provider", "provider"}
+            , {"provider_order", "providerorder"}
+            , {"vitals", "vitals"}
+        };
+
+        /*{table, id}*/
+        private readonly Dictionary<string, string> nonStandardTableId = new Dictionary<string, string>()
+        {
+            {"encounterpayerxref", "encounter_payer_id" }
+            , {"chargediagnosis", "charge_diagnosis_id" }
+            , {"obepisode", "episode_id"}
+            , {"oboutcome", "episode_id"}
+        };
+
         public void ValidateQueries(string path)
         {
-            var successMessage = new string[]
-            {
-                "YOU'VE GONE AND DONE IT!"
-                , "YOU ARE ON A ROLL MEOW!"
-                , "LOOK AT ALL YOU'VE ACCOMPLISHED!"
-                , "GO GET THAT 5 STAR REVIEW!"
-                , "YOU'RE THE PRIDE AND JOY OF AZARA!"
-                , "HOW DO YOU KEEP ALL THAT BRAIN FROM SPILLING OUT!?"
-                , "YOU'RE THE WHOLE PACKAGE, BEAUTIFUL, SMART, FUNNY, AND YOU CAN FOLLOW CODING STANDARDS!"
-                , "KNOCK KNOCK!! WHO'S THERE? A SUPER STAAAHHHHH!!"
-            };
-
-            var validTables = new string[]
-            {
-                "allergy"
-                , "problem"
-                , "appointment"
-                , "charge"
-                , "diagnosis"
-                , "encounter"
-                , "encounterpayerxref"
-                , "lab"
-                , "result"
-                , "maintenance"
-                , "immunization"
-                , "medication"
-                , "payer"
-                , "patient_payer"
-                , "patient"
-                , "provider"
-                , "assessment"
-                , "medicationlist"
-                , "prescription"
-                , "order"
-                , "vitals"
-                , "claim"
-                , "users"
-                , "balance"
-                , "document"
-                , "chargesummary"
-                , "payment"
-                , "eventlog"
-                , "adjustment"
-                , "denial"
-                , "hours"
-                , "employee"
-                , "rx_provider"
-                , "rx_transaction"
-                , "drug"
-                , "work_hours"
-                , "provider_order"
-                , "immunizationcombodetails"
-                , "chargediagnosis"
-                , "availableslots"
-                , "patientcohort"
-                , "obepisode"
-                , "oboutcome"
-            };
 
             XmlReaderSettings xmlReaderSettings = new XmlReaderSettings();
             xmlReaderSettings.IgnoreComments = true;
@@ -137,7 +129,7 @@ namespace Validator
                 }
 
                 //verify the table name is valid
-                if (!validTables.Contains(table))
+                if (!validTableAndElement.ContainsKey(table))
                 {
                     Console.WriteLine("\nERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
                     errorCount++;
@@ -182,10 +174,10 @@ namespace Validator
         private bool DoesTableMatchElement(string elementName, string table)
         {
             //TODO: update to take into acount other tables like patient_payer and provider_order where elements are providerorder
-            if (table == null)
+            if (table == null || !validTableAndElement.ContainsKey(table))
                 return false;
 
-            return (elementName.IndexOf(table + "_") >= 0 || elementName == table);
+            return (elementName.IndexOf(validTableAndElement[table] + "_") >= 0 || validTableAndElement[table] == elementName);
         }
 
         private void RemoveSqlComments(XmlNode node)
@@ -246,14 +238,25 @@ namespace Validator
             var source = node.Attributes?["source"]?.Value;
             var type = node.Attributes?["type"]?.Value;
 
+            //don't check for required fields on centralized tags or commands
             if (source != null || type == "command")
                 return true;
 
-            //TODO: update to take into account not using alias as. Check for the specific terms and certain cases, such as not inside parens, etc.
-            var key = "as " + tableName + "_id";
-            var create = "as create_timestamp";
-            var modify = "as modify_timestamp";
-            var delete = "as delete_ind";
+            string key;
+
+            if (nonStandardTableId.ContainsKey(tableName))
+            {
+                key = nonStandardTableId[tableName];
+            }
+            else
+            {
+                key = tableName + "_id";
+            }
+              
+            //TODO: this may not catch all cases. Need to determine a better way to validate that these columns are returned from query
+            var create = "create_timestamp";
+            var modify = "modify_timestamp";
+            var delete = "delete_ind";
             var errorCount = 0;
             var elementName = node.Name;
 
