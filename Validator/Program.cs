@@ -12,7 +12,7 @@ namespace Validator
         {
             ValidateXml validate = new ValidateXml();
 
-            if (args != null)
+            if (args.Length > 0)
                 validate.ValidateQueries(args[0]);
         }
     }
