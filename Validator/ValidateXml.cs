@@ -137,9 +137,9 @@ namespace Validator
                 }
 
                 //verify that the query element name matches the table, and is seperated by an underscore <maintenance_example table="maintenance"
-                if (!DoesTableMatchElement(node.Name, table))
+                if (!isElementNameValid(table, node.Name))
                 {
-                    Console.WriteLine("\nERROR: The name of the element, preceding an underscore, must match the table attribute value \n\n" + "<" + node.Name + " table=\"" + table + "\"");
+                    Console.WriteLine("\nERROR: The name of the element, preceding an underscore, must match the table attribute value, and cannot contain another table name. Ex. <lab_patient> \n\n" + "<" + node.Name + " table=\"" + table + "\"");
                     errorCount++;
                 }
 
@@ -174,13 +174,22 @@ namespace Validator
 
         }
 
-        private bool DoesTableMatchElement(string elementName, string table)
+        private bool isElementNameValid(string table, string elementName)
         {
-            //TODO: update to take into acount other tables like patient_payer and provider_order where elements are providerorder
+            //false if table is null or dictionary does not contain key
             if (table == null || !validTableAndElement.ContainsKey(table))
                 return false;
 
-            return (elementName.IndexOf(validTableAndElement[table] + "_") >= 0 || validTableAndElement[table] == elementName);
+            var tableUnderscore = table + "_";
+
+            // does not contain table_ , check if table is equal to element
+            if (elementName.IndexOf(tableUnderscore) != 0)
+                return validTableAndElement[table] == elementName;
+
+            var restOfName = elementName.Substring(elementName.IndexOf(tableUnderscore) + tableUnderscore.Length);
+
+            //check if everything after the underscore does not match a diffrent table
+            return !(validTableAndElement.ContainsKey(restOfName) && restOfName != elementName);
         }
 
         private void RemoveSqlComments(XmlNode node)
