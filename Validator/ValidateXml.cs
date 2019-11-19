@@ -43,6 +43,7 @@ namespace Validator
             , {"medication", "medication"}
             , {"immunization", "immunization"}
             , {"payer", "payer"}
+            , {"patient", "patient"}
             , {"patient_payer", "patientpayer"}
             , {"payment", "payment"}
             , {"prescription", "prescription"}
