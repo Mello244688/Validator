@@ -262,16 +262,26 @@ namespace Validator
             {
                 "create_timestamp"
                 , "modify_timestamp"
-                , "delete_ind"
             };
 
+            //provider_order table has "deleted_ind" and not "delete_ind" ...
+            if (tableName == "provider_order")
+            {
+                requiredFields.Add("deleted_ind");
+            }
+            else
+            {
+                requiredFields.Add("delete_ind");
+            }
+
+            //define key: some keys do not follow standard naming conventions
             if (nonStandardTableId.ContainsKey(tableName))
             {
                 key = nonStandardTableId[tableName];
             }
             else
             {
-                key = tableName + "_id";
+                key = tableName + "_id"; //the standard
             }
 
             requiredFields.Add(key);
