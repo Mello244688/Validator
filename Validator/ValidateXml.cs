@@ -110,8 +110,11 @@ namespace Validator
 
             foreach (XmlNode node in root.ChildNodes)
             {
+                var table = node.Attributes?["table"]?.Value;
+                var type = node.Attributes?["type"]?.Value;
+
                 // ignore text in root element
-                if (node.NodeType == XmlNodeType.Text)
+                if (node.NodeType == XmlNodeType.Text || type == "command")
                 {
                     continue;
                 }
@@ -123,12 +126,7 @@ namespace Validator
                     Console.WriteLine("\nERROR: " + "<" + node.Name + ">" + " cannot have child " + "<" + node.FirstChild.Name + ">");
                     errorCount++;
                 }
-
-
-                var table = node.Attributes?["table"]?.Value;
-                var type = node.Attributes?["type"]?.Value;
                 
-
                 //verify that the table and type attributes are specified
                 if (table == null || type == null)
                 {
@@ -149,6 +147,7 @@ namespace Validator
                     Console.WriteLine("\nERROR: The name of the element, preceding an underscore, must match the table attribute value, and cannot contain another table name. Ex. <lab_patient> \n\n" + "<" + node.Name + " table=\"" + table + "\"");
                     errorCount++;
                 }
+                
 
                 //remove sql comments from innerXML before validating fields
                 RemoveSqlComments(node);
