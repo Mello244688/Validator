@@ -256,8 +256,8 @@ namespace Validator
             var source = node.Attributes?["source"]?.Value;
             var type = node.Attributes?["type"]?.Value;
 
-            //don't check for required fields on centralized tags or commands
-            if (source != null || type == "command")
+            //don't check for required fields on centralized tags
+            if (source != null)
                 return true;
 
             var errorCount = 0;
