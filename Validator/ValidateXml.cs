@@ -36,6 +36,7 @@ namespace Validator
             , {"denial", "denial"}
             , {"diagnosis", "diagnosis"}
             , {"encounter", "encounter"}
+            , {"encounterpayerxref", "encounterpayerxref"}
             , {"obepisode", "obepisode"}
             , {"oboutcome", "oboutcome"}
             , {"lab", "lab"}
@@ -109,6 +110,12 @@ namespace Validator
 
             foreach (XmlNode node in root.ChildNodes)
             {
+                // ignore text in root element
+                if (node.NodeType == XmlNodeType.Text)
+                {
+                    continue;
+                }
+
                 elementNames.Add(node.Name);
                 //query cannot have nested queries
                 if (HasChildElements(node))
@@ -130,7 +137,7 @@ namespace Validator
                 }
 
                 //verify the table name is valid
-                if (!validTableAndElement.ContainsKey(table))
+                if (table == null || !validTableAndElement.ContainsKey(table))
                 {
                     Console.WriteLine("\nERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
                     errorCount++;
