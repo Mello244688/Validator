@@ -187,7 +187,7 @@ namespace Validator
             if (table == null || !validTableAndElement.ContainsKey(table))
                 return false;
 
-            var tableUnderscore = table + "_";
+            var tableUnderscore = validTableAndElement[table] + "_";
 
             // does not contain table_ , check if table is equal to element
             if (elementName.IndexOf(tableUnderscore) != 0)
