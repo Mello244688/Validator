@@ -268,6 +268,7 @@ namespace Validator
             {
                 "create_timestamp"
                 , "modify_timestamp"
+                , "center_id"
             };
 
             //provider_order table has "deleted_ind" and not "delete_ind" ...
