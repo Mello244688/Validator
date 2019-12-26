@@ -150,7 +150,7 @@ namespace Validator
                 
 
                 //remove sql comments from innerXML before validating fields
-                RemoveSqlComments(node);
+                RemoveSqlComments(node, ref errorCount);
 
                 //check for required fields
                 if (!HasRequiredFields(table, node))
@@ -198,7 +198,7 @@ namespace Validator
             return !(validTableAndElement.ContainsKey(restOfName) && restOfName != elementName);
         }
 
-        private void RemoveSqlComments(XmlNode node)
+        private void RemoveSqlComments(XmlNode node, ref int errorCount)
         {
             var openBlock = "/*";
             var closeBlock = "*/";
@@ -216,7 +216,7 @@ namespace Validator
             for(int i = 0; i < node.InnerXml.Length - 1; i++)
             {
                 //inline comments
-                if (node.InnerXml[i] == dash && node.InnerXml[i + 1] == dash)
+                if (node.InnerXml[i] == dash && node.InnerXml[i + 1] == dash && inBlockComment == false)
                 {
                     inInlineComment = true;
                     hasInvalidComment = true;
