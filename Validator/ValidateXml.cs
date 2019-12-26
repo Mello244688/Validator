@@ -245,7 +245,10 @@ namespace Validator
             node.InnerXml = sql.ToString();
 
             if (hasInvalidComment)
+            {
                 Console.WriteLine("\nERROR: " + "<" + node.Name + ">" + " contains inline commets \"--\". Please use block comments \"/*\"");
+                errorCount++;
+            }
         }
 
         private bool HasRequiredFields(string tableName, XmlNode node)
