@@ -27,6 +27,7 @@ namespace Validator
         {
             {"adjustment", "adjustment"}
             , {"allergy", "allergy" }
+            , {"assessment","assessment"}
             , {"appointment", "appointment"}
             , {"balance", "balance"}
             , {"charge", "charge"}
@@ -37,19 +38,26 @@ namespace Validator
             , {"diagnosis", "diagnosis"}
             , {"encounter", "encounter"}
             , {"encounterpayerxref", "encounterpayerxref"}
+            , {"hiepatient","hiepatient"}
+            , { "hieencounter","hieencounter"}
+            , { "hieencounterdiagnosis","hieencounterdiagnosis"}
+            , { "hieencounterprovider","hieencounterprovider"}
             , {"obepisode", "obepisode"}
             , {"oboutcome", "oboutcome"}
             , {"lab", "lab"}
             , {"maintenance", "maintenance"}
             , {"medication", "medication"}
+            , {"medicationlist", "medicationlist"}
             , {"immunization", "immunization"}
             , {"payer", "payer"}
             , {"patient", "patient"}
             , {"patient_payer", "patientpayer"}
             , {"payment", "payment"}
             , {"prescription", "prescription"}
+            , {"problem", "problem"}
             , {"provider", "provider"}
             , {"provider_order", "providerorder"}
+            , {"result", "result"}
             , {"vitals", "vitals"}
         };
 
@@ -58,6 +66,10 @@ namespace Validator
         {
             {"encounterpayerxref", "encounter_payer_id" }
             , {"chargediagnosis", "charge_diagnosis_id" }
+            , {"hiepatient","patient_id"}
+            , { "hieencounter","encounter_id"}
+            , { "hieencounterdiagnosis","encounter_diagnosis_id"}
+            , { "hieencounterprovider","provider_id"}
             , {"obepisode", "episode_id"}
             , {"oboutcome", "episode_id"}
         };
@@ -86,7 +98,8 @@ namespace Validator
             XmlReader reader = XmlReader.Create(new StringReader(strDoc), xmlReaderSettings);
 
             List<string> elementNames = new List<string>();
-            HashSet<string> eleHash = new HashSet<string>(); 
+            HashSet<string> eleHash = new HashSet<string>();
+            List<KeyTable> keyTable = new List<KeyTable>();
 
             int errorCount = 0;
 
@@ -152,6 +165,8 @@ namespace Validator
                 //remove sql comments from innerXML before validating fields
                 RemoveSqlComments(node, ref errorCount);
 
+                addKeyCodeToDict(table, node, keyTable, ref errorCount);
+
                 //check for required fields
                 if (!HasRequiredFields(table, node))
                 {
@@ -166,6 +181,7 @@ namespace Validator
                 Console.WriteLine("ERROR: You cannot have duplicate element " + "<" + elementName + ">");
                 errorCount++;
             }
+
 
             //print random success message
             Random rnd = new Random();
@@ -275,24 +291,17 @@ namespace Validator
             };
 
             //provider_order table has "deleted_ind" and not "delete_ind" ...
-            if (tableName == "provider_order")
+            /*if (tableName == "provider_order")
             {
                 requiredFields.Add("deleted_ind");
             }
             else
             {
                 requiredFields.Add("delete_ind");
-            }
+            }*/
 
-            //define key: some keys do not follow standard naming conventions
-            if (nonStandardTableId.ContainsKey(tableName))
-            {
-                key = nonStandardTableId[tableName];
-            }
-            else
-            {
-                key = tableName + "_id"; //the standard
-            }
+            //get the table key
+            key = getKey(tableName);
 
             requiredFields.Add(key);
 
@@ -316,6 +325,103 @@ namespace Validator
                     return true;
             }
             return false;
+        }
+
+        string getKey(string tableName)
+        {
+            string key;
+
+            if (nonStandardTableId.ContainsKey(tableName))
+            {
+                key = nonStandardTableId[tableName];
+            }
+            else
+            {
+                key = tableName + "_id"; //the standard
+            }
+
+            return key;
+        }
+
+        void addKeyCodeToDict(string tableName, XmlNode node, List<KeyTable> keyTable, ref int errorCount)
+        {
+            var start = 0;
+            var end = node.InnerXml.IndexOf("as " + getKey(tableName)) - 1;
+
+            Stack<char> delimiterCheck = new Stack<char>();
+
+            char openingParen = '(';
+            char closingParen = ')';
+            char singleQuote = '\'';
+            char space = ' ';
+
+            bool inQuotes = false;
+            bool canSave = true;
+
+            string key = "";
+            string trimKey = "";
+
+            if (end > 0)
+            {
+                key = node.InnerXml.Substring(0, end);
+            }
+
+            for (int i = key.Length - 1; i > start; i--)
+            {
+                if (key[i] == closingParen)
+                {
+                    delimiterCheck.Push(node.InnerXml[i]);
+                }
+                else if (key[i] == openingParen)
+                {
+                    delimiterCheck.Pop();
+                }
+                else if (key[i] == singleQuote && !inQuotes)
+                {
+                    inQuotes = true;
+                }
+                else if (key[i] == singleQuote && inQuotes)
+                {
+                    inQuotes = false;
+                }
+                
+                //if we are not in quotes it must be the end (start) of an alias, ex: alias.
+                if(key[i] == '.' && !inQuotes)
+                {
+                    canSave = false;
+                }
+                //if we are parsing an alias, a comma or space would signal the start
+                else if (!canSave && key[i] == space || key[i] == ',' || key[i] == openingParen)
+                {
+                    canSave = true;
+                }
+
+                //removng alias
+                if (!canSave)
+                {
+                    key = key.Remove(i, 1);
+                }
+
+                if (delimiterCheck.Count == 0 && key[i] == ',')
+                {
+                    start = i; // end loop
+                    key = key.Substring(start + 1, key.Length - (start +1)).Trim();
+                    trimKey = key.Replace(" ", "");
+                }
+            }
+
+            if (key.Length > 0)
+            {
+                KeyTable keyToAdd = new KeyTable();
+                keyToAdd.Table = tableName;
+                keyToAdd.Key = trimKey;
+                if (keyTable.Contains(keyToAdd))
+                {
+                    Console.WriteLine("\nDuplicate key: " + key + " in " + "<" + node.Name + ">");
+                    errorCount++;
+                }
+                keyTable.Add(keyToAdd);
+            }
         }
     }
 }
