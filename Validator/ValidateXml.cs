@@ -10,18 +10,6 @@ namespace Validator
 {
     class ValidateXml
     {
-        private readonly string[] successMessage = new string[]
-        {
-            "YOU'VE GONE AND DONE IT!"
-            , "YOU ARE ON A ROLL MEOW!"
-            , "LOOK AT ALL YOU'VE ACCOMPLISHED!"
-            , "GO GET THAT 5 STAR REVIEW!"
-            , "YOU'RE THE PRIDE AND JOY OF AZARA!"
-            , "HOW DO YOU KEEP ALL THAT BRAIN FROM SPILLING OUT!?"
-            , "YOU'RE THE WHOLE PACKAGE, BEAUTIFUL, SMART, FUNNY, AND YOU CAN FOLLOW CODING STANDARDS!"
-            , "KNOCK KNOCK!! WHO'S THERE? A SUPER STAAAHHHHH!!"
-        };
-
         /*{table, element}*/
         private readonly Dictionary<string, string> validTableAndElement = new Dictionary<string, string>()
         {
@@ -29,6 +17,7 @@ namespace Validator
             , {"allergy", "allergy" }
             , {"assessment","assessment"}
             , {"appointment", "appointment"}
+            , {"availableslots", "availableslots"}
             , {"balance", "balance"}
             , {"charge", "charge"}
             , {"chargediagnosis", "chargediagnosis"}
@@ -36,13 +25,16 @@ namespace Validator
             , {"claim", "claim"}
             , {"denial", "denial"}
             , {"diagnosis", "diagnosis"}
+            , {"employee", "employee"}
             , {"encounter", "encounter"}
             , {"encounterpayerxref", "encounterpayerxref"}
             , {"hiepatient","hiepatient"}
             , { "hieencounter","hieencounter"}
             , { "hieencounterdiagnosis","hieencounterdiagnosis"}
             , { "hieencounterprovider","hieencounterprovider"}
+            , {"hours", "hours"}
             , {"obepisode", "obepisode"}
+            , {"order", "order"}
             , {"oboutcome", "oboutcome"}
             , {"lab", "lab"}
             , {"maintenance", "maintenance"}
@@ -51,6 +43,7 @@ namespace Validator
             , {"immunization", "immunization"}
             , {"payer", "payer"}
             , {"patient", "patient"}
+            , {"patientcohort", "patientcohort"}
             , {"patient_payer", "patientpayer"}
             , {"payment", "payment"}
             , {"prescription", "prescription"}
@@ -58,6 +51,7 @@ namespace Validator
             , {"provider", "provider"}
             , {"provider_order", "providerorder"}
             , {"result", "result"}
+            , {"users", "users"}
             , {"vitals", "vitals"}
         };
 
@@ -66,19 +60,23 @@ namespace Validator
         {
             {"encounterpayerxref", "encounter_payer_id" }
             , {"chargediagnosis", "charge_diagnosis_id" }
+            , {"employee", "emp_id"}
             , {"hiepatient","patient_id"}
             , { "hieencounter","encounter_id"}
             , { "hieencounterdiagnosis","encounter_diagnosis_id"}
             , { "hieencounterprovider","provider_id"}
             , {"obepisode", "episode_id"}
             , {"oboutcome", "episode_id"}
+            , {"patientcohort", "patient_cohort_id"}
         };
 
-        public void ValidateQueries(string path)
+        public List<string> ValidateQueries(string path)
         {
 
             XmlReaderSettings xmlReaderSettings = new XmlReaderSettings();
             xmlReaderSettings.IgnoreComments = true;
+
+            List<string> errorMessages = new List<string>();
 
             XDocument doc;
 
@@ -88,8 +86,8 @@ namespace Validator
             }
             catch (Exception ex)
             {
-                Console.WriteLine("\nERROR: {0}", ex.Message);
-                return;
+                errorMessages.Add("ERROR: " + ex.Message);
+                return errorMessages;
             }
             
             var strDoc = doc.ToString().ToLower();
@@ -101,16 +99,14 @@ namespace Validator
             HashSet<string> eleHash = new HashSet<string>();
             List<KeyTable> keyTable = new List<KeyTable>();
 
-            int errorCount = 0;
-
             try
             {
                 xml.Load(reader);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("\nERROR: " + ex.Message);
-                return;
+                errorMessages.Add("ERROR: " + ex.Message);
+                return errorMessages;
             }
 
             //ignore XmlDeclaration
@@ -136,64 +132,47 @@ namespace Validator
                 //query cannot have nested queries
                 if (HasChildElements(node))
                 {
-                    Console.WriteLine("\nERROR: " + "<" + node.Name + ">" + " cannot have child " + "<" + node.FirstChild.Name + ">");
-                    errorCount++;
+                    errorMessages.Add("ERROR: " + "<" + node.Name + ">" + " cannot have child " + "<" + node.FirstChild.Name + ">");
                 }
                 
                 //verify that the table and type attributes are specified
                 if (table == null || type == null)
                 {
-                    Console.WriteLine("\nERROR: missing attribute in " + "<" + node.Name + " table=\"" + table + "\" type=\"" + type + "\">");
-                    errorCount++;
+                    errorMessages.Add("ERROR: missing attribute in " + "<" + node.Name + " table=\"" + table + "\" type=\"" + type + "\">");
                 }
 
                 //verify the table name is valid
                 if (table == null || !validTableAndElement.ContainsKey(table))
                 {
-                    Console.WriteLine("\nERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
-                    errorCount++;
+                    errorMessages.Add("ERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
                 }
 
                 //verify that the query element name matches the table, and is seperated by an underscore <maintenance_example table="maintenance"
                 if (!isElementNameValid(table, node.Name))
                 {
-                    Console.WriteLine("\nERROR: The name of the element, preceding an underscore, must match the table attribute value, and cannot contain another table name. Ex. <lab_patient> \n\n" + "<" + node.Name + " table=\"" + table + "\"");
-                    errorCount++;
+                    errorMessages.Add("ERROR: " + "<" + node.Name + " table=\"" + table + "\"" + " The name of the element, preceding an underscore, must match the table attribute value, and cannot contain another table name. Ex. <lab_patient>");
                 }
                 
 
                 //remove sql comments from innerXML before validating fields
-                RemoveSqlComments(node, ref errorCount);
+                RemoveSqlComments(node, errorMessages);
 
-                addKeyCodeToDict(table, node, keyTable, ref errorCount);
+                //addKeyCodeToDict(table, node, keyTable, errorMessages);
 
                 //check for required fields
-                if (!HasRequiredFields(table, node))
-                {
-                    errorCount++;
-                }
+                HasRequiredFields(table, node, errorMessages);
+  
             }
 
 
             //ensure that there are not any duplicate elements
             foreach (var elementName in elementNames.Where(x => !eleHash.Add(x)).ToList().Distinct())
             {
-                Console.WriteLine("ERROR: You cannot have duplicate element " + "<" + elementName + ">");
-                errorCount++;
+                errorMessages.Add("ERROR: You cannot have duplicate element " + "<" + elementName + ">");
             }
 
-
-            //print random success message
-            Random rnd = new Random();
-
-            if (errorCount == 0)
-            {
-                Console.WriteLine("\n" + successMessage[rnd.Next(0, successMessage.Length)] +  " VALIDATION SUCCESSFUL!!!");
-            }
-
-            Console.WriteLine();
             reader.Dispose();
-
+            return errorMessages;
         }
 
         private bool isElementNameValid(string table, string elementName)
@@ -210,11 +189,16 @@ namespace Validator
 
             var restOfName = elementName.Substring(elementName.IndexOf(tableUnderscore) + tableUnderscore.Length);
 
-            //check if everything after the underscore does not match a diffrent table
-            return !(validTableAndElement.ContainsKey(restOfName) && restOfName != elementName);
+            //check if everything after the underscore does not match a different table
+            // same table is ok
+            if (restOfName == table)
+            {
+                return true;
+            }
+            return !validTableAndElement.ContainsKey(restOfName);
         }
 
-        private void RemoveSqlComments(XmlNode node, ref int errorCount)
+        private void RemoveSqlComments(XmlNode node, List<string> errorMessages)
         {
             var openBlock = "/*";
             var closeBlock = "*/";
@@ -223,6 +207,7 @@ namespace Validator
             bool inInlineComment = false;
             bool inBlockComment = false;
             bool hasInvalidComment = false;
+            bool inSingleQuotes = false;
 
             var sql = new StringBuilder();
 
@@ -231,8 +216,19 @@ namespace Validator
 
             for(int i = 0; i < node.InnerXml.Length - 1; i++)
             {
+                //some people like putting inline comments in the type field
+                // need to keep track of when we are in quotes, as '--' will be valid
+                if (node.InnerXml[i] == '\'' && !inSingleQuotes)
+                {
+                    inSingleQuotes = true;
+                }
+                else if (node.InnerXml[i] == '\'' && inSingleQuotes)
+                {
+                    inSingleQuotes = false;
+                }
+
                 //inline comments
-                if (node.InnerXml[i] == dash && node.InnerXml[i + 1] == dash && inBlockComment == false)
+                if (node.InnerXml[i] == dash && node.InnerXml[i + 1] == dash && !inBlockComment && !inSingleQuotes)
                 {
                     inInlineComment = true;
                     hasInvalidComment = true;
@@ -262,24 +258,24 @@ namespace Validator
 
             if (hasInvalidComment)
             {
-                Console.WriteLine("\nERROR: " + "<" + node.Name + ">" + " contains inline commets \"--\". Please use block comments \"/*\"");
-                errorCount++;
+                errorMessages.Add("ERROR: " + "<" + node.Name + ">" + " contains inline commets \"--\". Please use block comments \"/*\"");
             }
         }
 
-        private bool HasRequiredFields(string tableName, XmlNode node)
+        private void HasRequiredFields(string tableName, XmlNode node, List<string> errorMessages)
         {
-            if (tableName is null)
-                return false;
+            if (tableName is null || tableName == "availableslots")
+            {
+                return;
+            }
 
             var source = node.Attributes?["source"]?.Value;
             var type = node.Attributes?["type"]?.Value;
 
             //don't check for required fields on centralized tags
             if (source != null)
-                return true;
+                return;
 
-            var errorCount = 0;
             var elementName = node.Name;
             string key;
 
@@ -287,9 +283,17 @@ namespace Validator
             {
                 "create_timestamp"
                 , "modify_timestamp"
-                , "center_id"
+                //, "center_id"
             };
 
+            if (tableName.IndexOf("hie") == 0)
+            {
+                requiredFields.Add("hie_id");
+            }
+            else
+            {
+                requiredFields.Add("center_id");
+            }
             //provider_order table has "deleted_ind" and not "delete_ind" ...
             /*if (tableName == "provider_order")
             {
@@ -309,12 +313,9 @@ namespace Validator
             {
                 if (node.InnerXml.Contains(field) == false)
                 {
-                    Console.WriteLine("\nERROR: Missing alias \"" + field + "\" in " + "<" + elementName + ">");
-                    errorCount++;
+                    errorMessages.Add("ERROR: Missing alias \"" + field + "\" in " + "<" + elementName + ">");
                 }
             }
-
-            return errorCount == 0;
         }
 
         private bool HasChildElements(XmlNode node)
@@ -343,7 +344,7 @@ namespace Validator
             return key;
         }
 
-        void addKeyCodeToDict(string tableName, XmlNode node, List<KeyTable> keyTable, ref int errorCount)
+        void addKeyCodeToDict(string tableName, XmlNode node, List<KeyTable> keyTable, List<string> errorMessages)
         {
             var start = 0;
             var end = node.InnerXml.IndexOf("as " + getKey(tableName)) - 1;
@@ -417,8 +418,7 @@ namespace Validator
                 keyToAdd.Key = trimKey;
                 if (keyTable.Contains(keyToAdd))
                 {
-                    Console.WriteLine("\nDuplicate key: " + key + " in " + "<" + node.Name + ">");
-                    errorCount++;
+                    errorMessages.Add("Duplicate key: " + key + " in " + "<" + node.Name + ">");
                 }
                 keyTable.Add(keyToAdd);
             }
