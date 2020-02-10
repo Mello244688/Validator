@@ -26,11 +26,17 @@ namespace Validator
                 , "KNOCK KNOCK!! WHO'S THERE? A SUPER STAAAHHHHH!!"
             };
 
-        /* if (args.Length > 0)
-             validate.ValidateQueries(args[0]);*/
+            if (args.Length > 0)
+            {
+                validate.ValidateQueries(args[0]);
+                return;
+            }
 
-            string path = "C:\\Users\\Scott\\DRVS-Clients";
-            string[] files = Directory.GetFiles(path, "*queries.xml", SearchOption.AllDirectories)
+            string path = "C:\\Users\\scott.mello\\DRVS-Clients";
+            string[] files;
+            try
+            {
+                files = Directory.GetFiles(path, "*queries.xml", SearchOption.AllDirectories)
                 .Where(d => !d.ToLower().Contains("adhoc")
                     && !d.ToLower().Contains("cbha")
                     && !d.ToLower().Contains("extract")
@@ -41,7 +47,12 @@ namespace Validator
                     && !Regex.IsMatch(d.ToLower(), "p[0-9]_")
                     && !Regex.IsMatch(d.ToLower(), "p[0-9][0-9]_")
                     && !Regex.IsMatch(d.ToLower(), "p[0-9]-")).ToArray();
-
+            }
+            catch (Exception)
+            {
+                return;
+            }
+            
             //Random rnd = new Random();
 
             using (StreamWriter sw = new StreamWriter("validatorErrors.txt"))
