@@ -13,6 +13,8 @@ namespace Validator
         static void Main(string[] args)
         {
             ValidateXml validate = new ValidateXml();
+            List<string> res;
+            Random rnd = new Random();
 
             string[] successMessage = new string[]
             {
@@ -28,7 +30,19 @@ namespace Validator
 
             if (args.Length > 0)
             {
-                validate.ValidateQueries(args[0]);
+                res = validate.ValidateQueries(args[0]);
+
+                if (res.Count > 0)
+                {
+                    foreach (var err in res)
+                    {
+                        Console.WriteLine(err);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("\n" + successMessage[rnd.Next(0, successMessage.Length)] + " VALIDATION SUCCESSFUL!!!");
+                }
                 return;
             }
 
@@ -52,14 +66,12 @@ namespace Validator
             {
                 return;
             }
-            
-            //Random rnd = new Random();
 
             using (StreamWriter sw = new StreamWriter("validatorErrors.txt"))
             {
                 foreach (var file in files)
                 {
-                    List<string> res = validate.ValidateQueries(file);
+                    res = validate.ValidateQueries(file);
                     
                     if (res.Count > 0)
                     {
@@ -79,9 +91,6 @@ namespace Validator
                     }
                 }
             }            
-
-            //Console.WriteLine("\n" + successMessage[rnd.Next(0, successMessage.Length)] + " VALIDATION SUCCESSFUL!!!");
-
         }
     }
 }
