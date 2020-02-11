@@ -218,11 +218,11 @@ namespace Validator
             {
                 //some people like putting inline comments in the type field
                 // need to keep track of when we are in quotes, as '--' will be valid
-                if (node.InnerXml[i] == '\'' && !inSingleQuotes)
+                if (node.InnerXml[i] == '\'' && !inSingleQuotes && !inBlockComment)
                 {
                     inSingleQuotes = true;
                 }
-                else if (node.InnerXml[i] == '\'' && inSingleQuotes)
+                else if (node.InnerXml[i] == '\'' && inSingleQuotes && !inBlockComment)
                 {
                     inSingleQuotes = false;
                 }
@@ -246,6 +246,9 @@ namespace Validator
                 else if (node.InnerXml[i] == closeBlock[0] && node.InnerXml[i + 1] == closeBlock[1] && !inSingleQuotes)
                 {
                     inBlockComment = false;
+                    i++; /*after finding closing block we want to continue after the block*/
+                    continue;
+
                 }
 
                 //add characters to new string

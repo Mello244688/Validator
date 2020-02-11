@@ -46,16 +46,30 @@ namespace Validator
                 return;
             }
 
-            string path = "C:\\Users\\scott.mello\\DRVS-Clients";
+            string path = "C:\\Users\\scott\\DRVS-Clients";
             string[] files;
             try
             {
-                files = Directory.GetFiles(path, "*queries.xml", SearchOption.AllDirectories)
+                files = Directory.GetFiles(path, "*queries*.xml", SearchOption.AllDirectories)
                 .Where(d => !d.ToLower().Contains("adhoc")
+                    && !d.ToLower().Contains("ad-hoc")
                     && !d.ToLower().Contains("cbha")
                     && !d.ToLower().Contains("extract")
+                    && !d.ToLower().Contains("oldclient")
                     && !d.ToLower().Contains("initial")
                     && !d.ToLower().Contains("archive")
+                    && !d.ToLower().Contains("alert")
+                    && !d.ToLower().Contains("save")
+                    && !d.ToLower().Contains("migration")
+                    && !d.ToLower().Contains("review")
+                    && !d.ToLower().Contains("lab")
+                    && !d.ToLower().Contains("charge")
+                    && !d.ToLower().Contains("medication")
+                    && !d.ToLower().Contains("ahs")
+                    && !d.ToLower().Contains("ccp")
+                    && !d.ToLower().Contains("fix")
+                    && !d.ToLower().Contains("test")
+                    && !d.ToLower().Contains("golive")
                     && !d.ToLower().Contains("\\bp")
                     && !d.ToLower().Contains("\\azr")
                     && !Regex.IsMatch(d.ToLower(), "p[0-9]_")
