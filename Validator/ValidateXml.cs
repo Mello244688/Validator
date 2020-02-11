@@ -239,11 +239,11 @@ namespace Validator
                 }
 
                 //block comments
-                if (node.InnerXml[i] == openBlock[0] && node.InnerXml[i + 1] == openBlock[1])
+                if (node.InnerXml[i] == openBlock[0] && node.InnerXml[i + 1] == openBlock[1] && !inSingleQuotes)
                 {
                     inBlockComment = true;
                 }
-                else if (node.InnerXml[i] == closeBlock[0] && node.InnerXml[i + 1] == closeBlock[1])
+                else if (node.InnerXml[i] == closeBlock[0] && node.InnerXml[i + 1] == closeBlock[1] && !inSingleQuotes)
                 {
                     inBlockComment = false;
                 }
