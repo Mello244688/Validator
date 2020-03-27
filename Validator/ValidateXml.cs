@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -70,13 +71,13 @@ namespace Validator
             , {"patientcohort", "patient_cohort_id"}
         };
 
-        public List<string> ValidateQueries(string path)
+        public ErrorWarning ValidateQueries(string path)
         {
 
             XmlReaderSettings xmlReaderSettings = new XmlReaderSettings();
             xmlReaderSettings.IgnoreComments = true;
 
-            List<string> errorMessages = new List<string>();
+            ErrorWarning errorWarning = new ErrorWarning();
 
             XDocument doc;
 
@@ -86,8 +87,8 @@ namespace Validator
             }
             catch (Exception ex)
             {
-                errorMessages.Add("ERROR: " + ex.Message);
-                return errorMessages;
+                errorWarning.Errors.Add("ERROR: " + ex.Message);
+                return errorWarning;
             }
             
             var strDoc = doc.ToString().ToLower();
@@ -105,8 +106,8 @@ namespace Validator
             }
             catch (Exception ex)
             {
-                errorMessages.Add("ERROR: " + ex.Message);
-                return errorMessages;
+                errorWarning.Errors.Add("ERROR: " + ex.Message);
+                return errorWarning;
             }
 
             //ignore XmlDeclaration
@@ -122,8 +123,14 @@ namespace Validator
                 var table = node.Attributes?["table"]?.Value;
                 var type = node.Attributes?["type"]?.Value;
 
-                // ignore text in root element
-                if (node.NodeType == XmlNodeType.Text || type == "command")
+                //a valid table should have a type="query"
+                if (table != null && validTableAndElement.ContainsKey(table) && type == "command")
+                {
+                    errorWarning.Errors.Add("ERROR: " + "<" + node.Name + " table=\"" + table + "\"" + " type=\"command\">" + " A valid table should not have a command attribute, if you expect to return this data, use type=\"query\"");
+                }
+
+                // ignore text in root element and commands if the table is not valid
+                if (node.NodeType == XmlNodeType.Text || type == "command" && !validTableAndElement.ContainsKey(table))
                 {
                     continue;
                 }
@@ -132,35 +139,32 @@ namespace Validator
                 //query cannot have nested queries
                 if (HasChildElements(node))
                 {
-                    errorMessages.Add("ERROR: " + "<" + node.Name + ">" + " cannot have child " + "<" + node.FirstChild.Name + ">");
+                    errorWarning.Errors.Add("ERROR: " + "<" + node.Name + ">" + " cannot have child " + "<" + node.FirstChild.Name + ">");
                 }
                 
                 //verify that the table and type attributes are specified
                 if (table == null || type == null)
                 {
-                    errorMessages.Add("ERROR: missing attribute in " + "<" + node.Name + " table=\"" + table + "\" type=\"" + type + "\">");
+                    errorWarning.Errors.Add("ERROR: missing attribute in " + "<" + node.Name + " table=\"" + table + "\" type=\"" + type + "\">");
                 }
 
                 //verify the table name is valid
                 if (table == null || !validTableAndElement.ContainsKey(table))
                 {
-                    errorMessages.Add("ERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
+                    errorWarning.Errors.Add("ERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
                 }
 
                 //verify that the query element name matches the table, and is seperated by an underscore <maintenance_example table="maintenance"
                 if (!isElementNameValid(table, node.Name))
                 {
-                    errorMessages.Add("ERROR: " + "<" + node.Name + " table=\"" + table + "\"" + " The name of the element, preceding an underscore, must match the table attribute value, and cannot contain another table name. Ex. <lab_patient>");
+                    errorWarning.Errors.Add("ERROR: " + "<" + node.Name + " table=\"" + table + "\"" + " The name of the element, preceding an underscore, must match the table attribute value, and cannot contain another table name. Ex. <lab_patient>");
                 }
-                
 
                 //remove sql comments from innerXML before validating fields
-                RemoveSqlComments(node, errorMessages);
-
-                //addKeyCodeToDict(table, node, keyTable, errorMessages);
+                RemoveComments(node, errorWarning);
 
                 //check for required fields
-                HasRequiredFields(table, node, errorMessages);
+                HasRequiredFields(table, node, errorWarning);
   
             }
 
@@ -168,11 +172,11 @@ namespace Validator
             //ensure that there are not any duplicate elements
             foreach (var elementName in elementNames.Where(x => !eleHash.Add(x)).ToList().Distinct())
             {
-                errorMessages.Add("ERROR: You cannot have duplicate element " + "<" + elementName + ">");
+                errorWarning.Errors.Add("ERROR: You cannot have duplicate element " + "<" + elementName + ">");
             }
 
             reader.Dispose();
-            return errorMessages;
+            return errorWarning;
         }
 
         private bool isElementNameValid(string table, string elementName)
@@ -198,7 +202,7 @@ namespace Validator
             return !validTableAndElement.ContainsKey(restOfName);
         }
 
-        private void RemoveSqlComments(XmlNode node, List<string> errorMessages)
+        private void RemoveSqlComments(XmlNode node, ErrorWarning errorWarning)
         {
             var openBlock = "/*";
             var closeBlock = "*/";
@@ -209,7 +213,14 @@ namespace Validator
             bool hasInvalidComment = false;
             bool inSingleQuotes = false;
 
-            var sql = new StringBuilder();
+            if (!node.InnerXml.Contains(openBlock) && !node.InnerXml.Contains(dash))
+                return;
+
+            RegexOptions options = RegexOptions.None;
+            Regex regex = new Regex("[ ]{2,}", options);
+            node.InnerXml = regex.Replace(node.InnerXml, " ");
+
+            var sql = new StringBuilder(node.InnerXml.Length);
 
             if (!node.InnerXml.Contains("--") && !node.InnerXml.Contains(openBlock))
                 return;
@@ -254,18 +265,56 @@ namespace Validator
                 //add characters to new string
                 if (!inInlineComment && !inBlockComment)
                 {
-                    sql.Append(node.InnerXml[i]);
+                    if (!node.InnerXml.Substring(i).Contains(openBlock) && !node.InnerXml.Substring(i).Contains(dash))
+                    {
+                        sql.Append(node.InnerXml.Substring(i));
+                    }
+                    else
+                    {
+                        sql.Append(node.InnerXml[i]);
+                    }
                 }
+
             }
             node.InnerXml = sql.ToString();
 
             if (hasInvalidComment)
             {
-                errorMessages.Add("ERROR: " + "<" + node.Name + ">" + " contains inline commets \"--\". Please use block comments \"/*\"");
+                errorWarning.Errors.Add("ERROR: " + "<" + node.Name + ">" + " contains inline commets \"--\". Please use block comments \"/*\"");
             }
         }
 
-        private void HasRequiredFields(string tableName, XmlNode node, List<string> errorMessages)
+        private void RemoveComments(XmlNode node, ErrorWarning errorWarning)
+        {
+            List<int> allSingleQuotes = node.InnerText.FindAllIndexof("'");
+            List<int> allOpeningBlockQuotes = node.InnerText.FindAllIndexof("/*");
+            List<int> allClosingBlockQuotes = node.InnerText.FindAllIndexof("*/");
+            List<int> allDashQuotes = node.InnerText.FindAllIndexof("--");
+
+            string sql = node.InnerText;
+
+            /*if there are no comments return or there are not an equal number of opening and closing*/
+            if (allOpeningBlockQuotes.Count == 0 && allClosingBlockQuotes.Count == 0 || allOpeningBlockQuotes.Count != allClosingBlockQuotes.Count)
+                return;
+
+            if (allClosingBlockQuotes[0] < allOpeningBlockQuotes[0])
+                return; //should probably error
+
+            List<int> blockRange = GetBlockCommentRange(allOpeningBlockQuotes, allClosingBlockQuotes);
+
+            for (int i = blockRange.Count- 1; i - 1 >= 0; i-=2)
+            {
+                int length = blockRange[i] - blockRange[i - 1] + 2;
+                sql = sql.Remove(blockRange[i - 1], length);
+            }
+
+            node.InnerText = sql;
+
+            //TODO: check for dash -- comments, need to take into account they may be in block comments or single quotes
+
+        }
+
+        private void HasRequiredFields(string tableName, XmlNode node, ErrorWarning errorWarning)
         {
             if (tableName is null || tableName == "availableslots")
             {
@@ -316,7 +365,7 @@ namespace Validator
             {
                 if (node.InnerXml.Contains(field) == false)
                 {
-                    errorMessages.Add("ERROR: Missing alias \"" + field + "\" in " + "<" + elementName + ">");
+                    errorWarning.Errors.Add("ERROR: Missing alias \"" + field + "\" in " + "<" + elementName + ">");
                 }
             }
         }
@@ -347,10 +396,42 @@ namespace Validator
             return key;
         }
 
-        void addKeyCodeToDict(string tableName, XmlNode node, List<KeyTable> keyTable, List<string> errorMessages)
+        List<int> GetBlockCommentRange(List<int> open, List<int> close)
+        {
+            if (open.Count != close.Count)
+                return null;
+
+            List<int> allBlocks = new List<int>();
+            List<int> result = new List<int>();
+
+            for(int i = 0; i < open.Count; i++)
+            {
+                allBlocks.Add(open[i]);
+                allBlocks.Add(close[i]);
+            }
+
+            result.Add(allBlocks[0]);
+            for(int i = 0; i + 2 < allBlocks.Count; i+=2)
+            {
+                //in order: can keep (not nested comments)
+                if (allBlocks[i + 1] < allBlocks[i + 2])
+                {
+                    result.Add(allBlocks[i + 1]);
+                    result.Add(allBlocks[i + 2]);
+                }
+
+                //at the end of nested comments, can add to list
+                if (i + 4 == allBlocks.Count)
+                {
+                    result.Add(allBlocks[i + 3]);
+                }
+            }
+            return result;
+        }
+        void addKeyCodeToDict(string tableName, XmlNode node, List<KeyTable> keyTable, ErrorWarning errorWarning)
         {
             var start = 0;
-            var end = node.InnerXml.IndexOf("as " + getKey(tableName)) - 1;
+            var end = node.InnerXml.LastIndexOf("as " + getKey(tableName)) - 1;
 
             Stack<char> delimiterCheck = new Stack<char>();
 
@@ -367,7 +448,7 @@ namespace Validator
 
             if (end > 0)
             {
-                key = node.InnerXml.Substring(0, end);
+                key = node.InnerXml.Substring(0, end + 1);
             }
 
             for (int i = key.Length - 1; i > start; i--)
@@ -416,14 +497,16 @@ namespace Validator
 
             if (key.Length > 0)
             {
-                KeyTable keyToAdd = new KeyTable();
+                /*KeyTable keyToAdd = new KeyTable();
                 keyToAdd.Table = tableName;
                 keyToAdd.Key = trimKey;
                 if (keyTable.Contains(keyToAdd))
                 {
                     errorMessages.Add("Duplicate key: " + key + " in " + "<" + node.Name + ">");
                 }
-                keyTable.Add(keyToAdd);
+                keyTable.Add(keyToAdd);*/
+                if (key.Contains("date") || key.Contains("time"))
+                    errorWarning.Warnings.Add("WARNING: Primary Key \"" + key + "\" in " + "<" + node.Name + ">" + " includes a date field");
             }
         }
     }
