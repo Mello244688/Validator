@@ -27,63 +27,25 @@ namespace Validator
                 , "I KNOW THIS IS CORNY, BUT YOU ARE A-MAIZING-ING!"
                 , "YOU'RE DOING SUCH A GREAT JOB, YOU SHOULD TAKE THE REST OF THE DAY OFF!!"
             };
-            
-            if (args.Length == 1)
-            {
-                res = validate.ValidateQueries(args[0]);
 
-                if (res.Errors.Count > 0)
-                {
-                    foreach (var err in res.Errors)
-                    {
-                        Console.WriteLine(err);
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("\n" + successMessage[rnd.Next(0, successMessage.Length)] + " VALIDATION SUCCESSFUL!!!");
-                }
-                return;
-            }
-            
-            if (args.Length == 2 && args[1] == "all")
+            var test = "C:/users/scott/drvs-clients";
+
+            FileAttributes attr = File.GetAttributes(test);
+
+            if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
             {
-                string path = args[0];
+                string path = "C:/users/scott/drvs-clients";
                 string[] files;
                 try
                 {
-                    files = Directory.GetFiles(path, "*queries.xml", SearchOption.AllDirectories)
-                    .Where(d => !d.ToLower().Contains("adhoc")
-                        && !d.ToLower().Contains("ad-hoc")
-                        && !d.ToLower().Contains("cbha")
-                        && !d.ToLower().Contains("extract")
-                        && !d.ToLower().Contains("oldclient")
-                        && !d.ToLower().Contains("initial")
-                        && !d.ToLower().Contains("archive")
-                        && !d.ToLower().Contains("alert")
-                        && !d.ToLower().Contains("save")
-                        && !d.ToLower().Contains("migration")
-                        && !d.ToLower().Contains("review")
-                        && !d.ToLower().Contains("lab")
-                        && !d.ToLower().Contains("charge")
-                        && !d.ToLower().Contains("medication")
-                        && !d.ToLower().Contains("ahs")
-                        && !d.ToLower().Contains("ccp")
-                        && !d.ToLower().Contains("fix")
-                        && !d.ToLower().Contains("test")
-                        && !d.ToLower().Contains("golive")
-                        && !d.ToLower().Contains("\\bp")
-                        && !d.ToLower().Contains("\\azr")
-                        && !Regex.IsMatch(d.ToLower(), "p[0-9]_")
-                        && !Regex.IsMatch(d.ToLower(), "p[0-9][0-9]_")
-                        && !Regex.IsMatch(d.ToLower(), "p[0-9]-")).ToArray();
+                    files = Directory.GetFiles(path, "*.xml", SearchOption.AllDirectories).ToArray();
                 }
                 catch (Exception)
                 {
                     return;
                 }
 
-                using (StreamWriter sw = new StreamWriter(@"..\..\..\..\validatorErrors.txt"))
+                using (StreamWriter sw = new StreamWriter("validatorErrors.txt"))
                 {
                     foreach (var file in files)
                     {
@@ -114,7 +76,24 @@ namespace Validator
                         }
                     }
                 }
-            }          
+            }
+            else //path
+            {
+                res = validate.ValidateQueries(args[0]);
+
+                if (res.Errors.Count > 0)
+                {
+                    foreach (var err in res.Errors)
+                    {
+                        Console.WriteLine(err);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("\n" + successMessage[rnd.Next(0, successMessage.Length)] + " VALIDATION SUCCESSFUL!!!");
+                }
+                return;
+            }
         }
     }
 }

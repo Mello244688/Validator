@@ -47,6 +47,21 @@ namespace Validator
             , {"patientcohort", "patientcohort"}
             , {"patient_payer", "patientpayer"}
             , {"payment", "payment"}
+            , {"plan_member", "plan_member"}
+            , {"plan_membercost", "plan_membercost"}
+            , {"plan_plansite", "plan_plansite"}
+            , {"plan_memberplansite", "plan_memberplansite"}
+            , {"plan_membereligibility", "plan_membereligibility"}
+            , {"plan_memberepisode", "plan_memberepisode"}
+            , {"plan_site", "plan_site"}
+            , {"plan_memberrisk", "plan_memberrisk"}
+            , {"plan_membercaregap", "plan_membercaregap"}
+            , {"planclaim", "planclaim"}
+            , {"plan_claimline", "plan_claimline"}
+            , {"plan_claimlinemodifier", "plan_claimlinemodifier"}
+            , {"plan_rxclaim", "plan_rxclaim"}
+            , {"plan_claimdiagnosis", "plan_claimdiagnosis"}
+            , {"plan_claimprocedure", "plan_claimprocedure"}
             , {"prescription", "prescription"}
             , {"problem", "problem"}
             , {"provider", "provider"}
@@ -69,6 +84,21 @@ namespace Validator
             , {"obepisode", "episode_id"}
             , {"oboutcome", "episode_id"}
             , {"patientcohort", "patient_cohort_id"}
+            , {"plan_member", "plan_id"}
+            , {"plan_membercost", "plan_id"}
+            , {"plan_plansite", "plan_id"}
+            , {"plan_memberplansite", "plan_id"}
+            , {"plan_membereligibility", "plan_id"}
+            , {"plan_memberepisode", "plan_id"}
+            , {"plan_site", "plan_id"}
+            , {"plan_memberrisk", "plan_id"}
+            , {"plan_membercaregap", "plan_id"}
+            , {"planclaim", "plan_id"}
+            , {"plan_claimline", "plan_id"}
+            , {"plan_claimlinemodifier", "plan_id"}
+            , {"plan_rxclaim", "plan_id"}
+            , {"plan_claimdiagnosis", "plan_id"}
+            , {"plan_claimprocedure", "claim_procedure_id"}
         };
 
         public ErrorWarning ValidateQueries(string path)
@@ -118,6 +148,17 @@ namespace Validator
 
             XmlNode root = xml.FirstChild;
 
+            if (CanDoAdditionalChecks(path))
+            {
+                AdditionalChecks(root, errorWarning, elementNames, eleHash);
+            }
+
+            reader.Dispose();
+            return errorWarning;
+        }
+
+        void AdditionalChecks(XmlNode root, ErrorWarning errorWarning, List<string> elementNames, HashSet<string> eleHash)
+        {
             foreach (XmlNode node in root.ChildNodes)
             {
                 var table = node.Attributes?["table"]?.Value;
@@ -141,7 +182,7 @@ namespace Validator
                 {
                     errorWarning.Errors.Add("ERROR: " + "<" + node.Name + ">" + " cannot have child " + "<" + node.FirstChild.Name + ">");
                 }
-                
+
                 //verify that the table and type attributes are specified
                 if (table == null || type == null)
                 {
@@ -151,7 +192,7 @@ namespace Validator
                 //verify the table name is valid
                 if (table == null || !validTableAndElement.ContainsKey(table))
                 {
-                    errorWarning.Errors.Add("ERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help") ;
+                    errorWarning.Errors.Add("ERROR: table=\"" + table + "\" is not a valid table. Refer to the Schema file for help");
                 }
 
                 //verify that the query element name matches the table, and is seperated by an underscore <maintenance_example table="maintenance"
@@ -165,7 +206,6 @@ namespace Validator
 
                 //check for required fields
                 HasRequiredFields(table, node, errorWarning);
-  
             }
 
 
@@ -174,9 +214,34 @@ namespace Validator
             {
                 errorWarning.Errors.Add("ERROR: You cannot have duplicate element " + "<" + elementName + ">");
             }
+        }
 
-            reader.Dispose();
-            return errorWarning;
+        private bool CanDoAdditionalChecks(string path)
+        {
+
+            // trying to minimize number of errors on a full run
+
+            return !path.ToLower().Contains("cbha")
+                && !path.ToLower().Contains("extract")
+                && !path.ToLower().Contains("oldclient")
+                && !path.ToLower().Contains("initial")
+                && !path.ToLower().Contains("archive")
+                && !path.ToLower().Contains("alert")
+                && !path.ToLower().Contains("save")
+                && !path.ToLower().Contains("migration")
+                && !path.ToLower().Contains("review")
+                && !path.ToLower().Contains("lab")
+                && !path.ToLower().Contains("charge")
+                && !path.ToLower().Contains("medication")
+                && !path.ToLower().Contains("fix")
+                && !path.ToLower().Contains("test")
+                && !path.ToLower().Contains("golive")
+                && !path.ToLower().Contains("config")
+                && !path.ToLower().Contains("\\bp")
+                && !path.ToLower().Contains("\\azr")
+                && !Regex.IsMatch(path.ToLower(), "p[0-9]_")
+                && !Regex.IsMatch(path.ToLower(), "p[0-9][0-9]_")
+                && !Regex.IsMatch(path.ToLower(), "p[0-9]-");
         }
 
         private bool isElementNameValid(string table, string elementName)
