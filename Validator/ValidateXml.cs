@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
@@ -128,7 +127,6 @@ namespace Validator
 
             List<string> elementNames = new List<string>();
             HashSet<string> eleHash = new HashSet<string>();
-            List<KeyTable> keyTable = new List<KeyTable>();
 
             try
             {
@@ -267,98 +265,14 @@ namespace Validator
             return !validTableAndElement.ContainsKey(restOfName);
         }
 
-        private void RemoveSqlComments(XmlNode node, ErrorWarning errorWarning)
-        {
-            var openBlock = "/*";
-            var closeBlock = "*/";
-            var newline = '\n';
-            char dash = '-';
-            bool inInlineComment = false;
-            bool inBlockComment = false;
-            bool hasInvalidComment = false;
-            bool inSingleQuotes = false;
-
-            if (!node.InnerXml.Contains(openBlock) && !node.InnerXml.Contains(dash))
-                return;
-
-            RegexOptions options = RegexOptions.None;
-            Regex regex = new Regex("[ ]{2,}", options);
-            node.InnerXml = regex.Replace(node.InnerXml, " ");
-
-            var sql = new StringBuilder(node.InnerXml.Length);
-
-            if (!node.InnerXml.Contains("--") && !node.InnerXml.Contains(openBlock))
-                return;
-
-            for(int i = 0; i < node.InnerXml.Length - 1; i++)
-            {
-                //some people like putting inline comments in the type field
-                // need to keep track of when we are in quotes, as '--' will be valid
-                if (node.InnerXml[i] == '\'' && !inSingleQuotes && !inBlockComment)
-                {
-                    inSingleQuotes = true;
-                }
-                else if (node.InnerXml[i] == '\'' && inSingleQuotes && !inBlockComment)
-                {
-                    inSingleQuotes = false;
-                }
-
-                //inline comments
-                if (node.InnerXml[i] == dash && node.InnerXml[i + 1] == dash && !inBlockComment && !inSingleQuotes)
-                {
-                    inInlineComment = true;
-                    hasInvalidComment = true;
-                }
-                else if (node.InnerXml[i] == newline)
-                {
-                    inInlineComment = false;
-                }
-
-                //block comments
-                if (node.InnerXml[i] == openBlock[0] && node.InnerXml[i + 1] == openBlock[1] && !inSingleQuotes)
-                {
-                    inBlockComment = true;
-                }
-                else if (node.InnerXml[i] == closeBlock[0] && node.InnerXml[i + 1] == closeBlock[1] && !inSingleQuotes)
-                {
-                    inBlockComment = false;
-                    i++; /*after finding closing block we want to continue after the block*/
-                    continue;
-
-                }
-
-                //add characters to new string
-                if (!inInlineComment && !inBlockComment)
-                {
-                    if (!node.InnerXml.Substring(i).Contains(openBlock) && !node.InnerXml.Substring(i).Contains(dash))
-                    {
-                        sql.Append(node.InnerXml.Substring(i));
-                    }
-                    else
-                    {
-                        sql.Append(node.InnerXml[i]);
-                    }
-                }
-
-            }
-            node.InnerXml = sql.ToString();
-
-            if (hasInvalidComment)
-            {
-                errorWarning.Errors.Add("ERROR: " + "<" + node.Name + ">" + " contains inline commets \"--\". Please use block comments \"/*\"");
-            }
-        }
-
         private void RemoveComments(XmlNode node, ErrorWarning errorWarning)
         {
-            List<int> allSingleQuotes = node.InnerText.FindAllIndexof("'");
             List<int> allOpeningBlockQuotes = node.InnerText.FindAllIndexof("/*");
             List<int> allClosingBlockQuotes = node.InnerText.FindAllIndexof("*/");
-            List<int> allDashQuotes = node.InnerText.FindAllIndexof("--");
 
             string sql = node.InnerText;
 
-            /*if there are no comments return or there are not an equal number of opening and closing*/
+            /*return if there are no comments or there are not an equal number of opening and closing*/
             if (allOpeningBlockQuotes.Count == 0 && allClosingBlockQuotes.Count == 0 || allOpeningBlockQuotes.Count != allClosingBlockQuotes.Count)
                 return;
 
@@ -400,7 +314,6 @@ namespace Validator
             {
                 "create_timestamp"
                 , "modify_timestamp"
-                //, "center_id"
             };
 
             if (tableName.IndexOf("hie") == 0)
@@ -411,15 +324,6 @@ namespace Validator
             {
                 requiredFields.Add("center_id");
             }
-            //provider_order table has "deleted_ind" and not "delete_ind" ...
-            /*if (tableName == "provider_order")
-            {
-                requiredFields.Add("deleted_ind");
-            }
-            else
-            {
-                requiredFields.Add("delete_ind");
-            }*/
 
             //get the table key
             key = getKey(tableName);
@@ -492,87 +396,6 @@ namespace Validator
                 }
             }
             return result;
-        }
-        void addKeyCodeToDict(string tableName, XmlNode node, List<KeyTable> keyTable, ErrorWarning errorWarning)
-        {
-            var start = 0;
-            var end = node.InnerXml.LastIndexOf("as " + getKey(tableName)) - 1;
-
-            Stack<char> delimiterCheck = new Stack<char>();
-
-            char openingParen = '(';
-            char closingParen = ')';
-            char singleQuote = '\'';
-            char space = ' ';
-
-            bool inQuotes = false;
-            bool canSave = true;
-
-            string key = "";
-            string trimKey = "";
-
-            if (end > 0)
-            {
-                key = node.InnerXml.Substring(0, end + 1);
-            }
-
-            for (int i = key.Length - 1; i > start; i--)
-            {
-                if (key[i] == closingParen)
-                {
-                    delimiterCheck.Push(node.InnerXml[i]);
-                }
-                else if (key[i] == openingParen)
-                {
-                    delimiterCheck.Pop();
-                }
-                else if (key[i] == singleQuote && !inQuotes)
-                {
-                    inQuotes = true;
-                }
-                else if (key[i] == singleQuote && inQuotes)
-                {
-                    inQuotes = false;
-                }
-                
-                //if we are not in quotes it must be the end (start) of an alias, ex: alias.
-                if(key[i] == '.' && !inQuotes)
-                {
-                    canSave = false;
-                }
-                //if we are parsing an alias, a comma or space would signal the start
-                else if (!canSave && key[i] == space || key[i] == ',' || key[i] == openingParen)
-                {
-                    canSave = true;
-                }
-
-                //removng alias
-                if (!canSave)
-                {
-                    key = key.Remove(i, 1);
-                }
-
-                if (delimiterCheck.Count == 0 && key[i] == ',')
-                {
-                    start = i; // end loop
-                    key = key.Substring(start + 1, key.Length - (start +1)).Trim();
-                    trimKey = key.Replace(" ", "");
-                }
-            }
-
-            if (key.Length > 0)
-            {
-                /*KeyTable keyToAdd = new KeyTable();
-                keyToAdd.Table = tableName;
-                keyToAdd.Key = trimKey;
-                if (keyTable.Contains(keyToAdd))
-                {
-                    errorMessages.Add("Duplicate key: " + key + " in " + "<" + node.Name + ">");
-                }
-                keyTable.Add(keyToAdd);*/
-                if (key.Contains("date") || key.Contains("time"))
-                    errorWarning.Warnings.Add("WARNING: Primary Key \"" + key + "\" in " + "<" + node.Name + ">" + " includes a date field");
-            }
         }
     }
 }

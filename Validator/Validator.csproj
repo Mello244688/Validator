@@ -45,7 +45,6 @@
   <ItemGroup>
     <Compile Include="ErrorWarning.cs" />
     <Compile Include="ExtentionMethods.cs" />
-    <Compile Include="KeyTable.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ValidateXml.cs" />

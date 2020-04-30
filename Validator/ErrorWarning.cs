@@ -6,6 +6,7 @@ namespace Validator
     {
         public List<string> Errors { get; set; }
         public List<string> Warnings { get; set; }
+        public string Filename { get; set; }
 
         public ErrorWarning()
         {
