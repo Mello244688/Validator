@@ -34,6 +34,7 @@ namespace Validator
             if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
             {
                 string path = args[0];
+
                 string[] files;
                 try
                 {
@@ -60,7 +61,7 @@ namespace Validator
                     GenerateReport(errorWarnings, path);
                 }
             }
-            else //path
+            else //file path
             {
                 res = validate.ValidateQueries(args[0]);
 

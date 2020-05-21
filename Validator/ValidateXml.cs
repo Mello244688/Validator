@@ -194,10 +194,7 @@ namespace Validator
                 }
 
                 //verify that the query element name matches the table, and is seperated by an underscore <maintenance_example table="maintenance"
-                if (!isElementNameValid(table, node.Name))
-                {
-                    errorWarning.Errors.Add("ERROR: " + "<" + node.Name + " table=\"" + table + "\"" + " The name of the element, preceding an underscore, must match the table attribute value, and cannot contain another table name. Ex. <lab_patient>");
-                }
+                isElementNameValid(table, node.Name, errorWarning);
 
                 //remove sql comments from innerXML before validating fields
                 RemoveComments(node, errorWarning);
@@ -239,30 +236,54 @@ namespace Validator
                 && !path.ToLower().Contains("\\azr")
                 && !Regex.IsMatch(path.ToLower(), "p[0-9]_")
                 && !Regex.IsMatch(path.ToLower(), "p[0-9][0-9]_")
-                && !Regex.IsMatch(path.ToLower(), "p[0-9]-");
+                && !Regex.IsMatch(path.ToLower(), "p[0-9]-")
+                && File.GetLastWriteTime(path) >= DateTime.Now.AddYears(-1); //file has been modified in the past 1 years
         }
 
-        private bool isElementNameValid(string table, string elementName)
+        private void isElementNameValid(string table, string elementName, ErrorWarning errorWarning)
         {
-            //false if table is null or dictionary does not contain key
+            //false if table is null or dictionary does not contain key, don't run checks
             if (table == null || !validTableAndElement.ContainsKey(table))
-                return false;
+                return;
 
             var tableUnderscore = validTableAndElement[table] + "_";
 
             // does not contain table_ , check if table is equal to element
             if (elementName.IndexOf(tableUnderscore) != 0)
-                return validTableAndElement[table] == elementName;
-
-            var restOfName = elementName.Substring(elementName.IndexOf(tableUnderscore) + tableUnderscore.Length);
-
-            //check if everything after the underscore does not match a different table
-            // same table is ok
-            if (restOfName == table)
             {
-                return true;
+                if (validTableAndElement[table] != elementName)
+                {
+                    errorWarning.Errors.Add("ERROR: " + "<" + elementName + "> does not correspond to a valid table");
+                }
+                else
+                {
+                    return; //table equals element so return
+                }
             }
-            return !validTableAndElement.ContainsKey(restOfName);
+
+            List<string> elementSplit = elementName.Split('_').ToList();
+
+            var allElements = validTableAndElement.Values;
+            List<string> extraElementsInTag = elementSplit.Intersect(allElements).Distinct().ToList();
+            extraElementsInTag.Remove(validTableAndElement[table]);
+
+            if (extraElementsInTag.Count > 0)
+            {
+                string error = "ERROR: " + "<" + elementName + " table=\"" + table + "\"" + " Cannot have more than one table name in element tag. Additional tables in tag: ";
+
+                foreach (var ele in extraElementsInTag)
+                {
+                    if (ele.Equals(extraElementsInTag.Last()))
+                    {
+                        error += ele;
+                    }
+                    else
+                    {
+                        error += ele + ", ";
+                    }
+                }
+                errorWarning.Errors.Add(error);
+            }
         }
 
         private void RemoveComments(XmlNode node, ErrorWarning errorWarning)
