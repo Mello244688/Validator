@@ -38,7 +38,8 @@ namespace Validator
                 string[] files;
                 try
                 {
-                    files = Directory.GetFiles(path, "*.xml", SearchOption.AllDirectories).ToArray();
+                    files = Directory.GetFiles(path, "*.xml", SearchOption.AllDirectories)
+                        .Where(x => !x.Contains("config.xml")).ToArray();
                 }
                 catch (Exception)
                 {

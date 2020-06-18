@@ -169,7 +169,7 @@ namespace Validator
                 }
 
                 // ignore text in root element and commands if the table is not valid
-                if (node.NodeType == XmlNodeType.Text || type == "command" && !validTableAndElement.ContainsKey(table))
+                if (node.NodeType == XmlNodeType.Text || type == "command" && (table == null || !validTableAndElement.ContainsKey(table)))
                 {
                     continue;
                 }
