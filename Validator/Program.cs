@@ -56,11 +56,7 @@ namespace Validator
                         errorWarnings.Add(res);
                     }
                 }
-
-                if (errorWarnings.Count > 0)
-                {
-                    GenerateReport(errorWarnings, path);
-                }
+                GenerateReport(errorWarnings, path);
             }
             else //file path
             {
