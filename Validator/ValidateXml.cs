@@ -253,7 +253,7 @@ namespace Validator
             {
                 if (validTableAndElement[table] != elementName)
                 {
-                    errorWarning.Errors.Add("ERROR: " + "<" + elementName + "> does not correspond to a valid table");
+                    errorWarning.Errors.Add("ERROR: " + "<" + elementName + "> does not correspond to table=\"" + table + "\"");
                 }
                 else
                 {
