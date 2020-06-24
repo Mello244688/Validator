@@ -28,6 +28,7 @@ namespace Validator
             , {"employee", "employee"}
             , {"encounter", "encounter"}
             , {"encounterpayerxref", "encounterpayerxref"}
+            , {"eventlog", "eventlog"}
             , {"hiepatient","hiepatient"}
             , { "hieencounter","hieencounter"}
             , { "hieencounterdiagnosis","hieencounterdiagnosis"}
