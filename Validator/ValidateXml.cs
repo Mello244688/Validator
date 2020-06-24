@@ -188,6 +188,10 @@ namespace Validator
                     errorWarning.Errors.Add("ERROR: missing attribute in " + "<" + node.Name + " table=\"" + table + "\" type=\"" + type + "\">");
                 }
 
+                if (node.Name == "immunizationall")
+                {
+                    Console.WriteLine();
+                }
                 //verify the table name is valid
                 if (table == null || !validTableAndElement.ContainsKey(table))
                 {
@@ -215,24 +219,10 @@ namespace Validator
         private bool CanDoAdditionalChecks(string path)
         {
 
-            // trying to minimize number of errors on a full run
+            // restrict the files and directories we want to do additional checks on
 
-            return !path.ToLower().Contains("cbha")
-                && !path.ToLower().Contains("extract")
-                && !path.ToLower().Contains("oldclient")
-                && !path.ToLower().Contains("initial")
-                && !path.ToLower().Contains("archive")
-                && !path.ToLower().Contains("alert")
-                && !path.ToLower().Contains("save")
-                && !path.ToLower().Contains("migration")
-                && !path.ToLower().Contains("review")
-                && !path.ToLower().Contains("lab")
-                && !path.ToLower().Contains("charge")
-                && !path.ToLower().Contains("medication")
-                && !path.ToLower().Contains("fix")
+            return !path.ToLower().Contains("config")
                 && !path.ToLower().Contains("test")
-                && !path.ToLower().Contains("golive")
-                && !path.ToLower().Contains("config")
                 && !path.ToLower().Contains("\\bp")
                 && !path.ToLower().Contains("\\azr")
                 && !Regex.IsMatch(path.ToLower(), "p[0-9]_")
@@ -254,7 +244,7 @@ namespace Validator
             {
                 if (validTableAndElement[table] != elementName)
                 {
-                    errorWarning.Errors.Add("ERROR: " + "<" + elementName + "> does not correspond to table=\"" + table + "\"");
+                    errorWarning.Errors.Add("ERROR: " + "<" + elementName + "> needs to correspond to table=\"" + table + "\", and be seperated by an underscore for additional text. EX: <" + table + "_text>");
                 }
                 else
                 {
